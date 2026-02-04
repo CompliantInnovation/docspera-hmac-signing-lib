@@ -1,10 +1,10 @@
+import base64
 import hashlib
 import hmac
-import base64
 import re
-from datetime import timezone, datetime
-from email.utils import parsedate_to_datetime, formatdate
-from typing import Any, Dict, Optional, Tuple, Union
+from datetime import datetime, timezone
+from email.utils import formatdate, parsedate_to_datetime
+from typing import Any, Optional, Union
 
 
 def compute_hmac_signature(
@@ -12,10 +12,10 @@ def compute_hmac_signature(
     secret_key: str,
     algorithm: str = "SHA256",
     encoding: str = "utf-8",
-    headers_to_sign: Optional[Dict[str, str]] = None,
+    headers_to_sign: Optional[dict[str, str]] = None,
     method: str = "POST",
     path: str = "/",
-) -> Tuple[str, str]:
+) -> tuple[str, str]:
     """
     Compute HMAC signature for a given body and secret key with optional header signing.
 
@@ -61,9 +61,7 @@ def compute_hmac_signature(
     if headers_to_sign:
         for header_name in sorted(headers_to_sign.keys(), key=str.lower):
             signed_headers.append(header_name.lower())
-            canonical_parts.append(
-                f"{header_name.lower()}:{headers_to_sign[header_name]}"
-            )
+            canonical_parts.append(f"{header_name.lower()}:{headers_to_sign[header_name]}")
 
     # Add body
     canonical_parts.append(body)
@@ -82,7 +80,7 @@ def compute_hmac_signature(
     return base64.b64encode(h.digest()).decode("ascii"), canonical_string
 
 
-def parse_hmac_header(auth_header: str) -> Tuple[str, Dict[str, str]]:
+def parse_hmac_header(auth_header: str) -> tuple[str, dict[str, str]]:
     """
     Parse HMAC authorization header.
 
@@ -128,9 +126,7 @@ def parse_hmac_header(auth_header: str) -> Tuple[str, Dict[str, str]]:
     }
 
 
-def verify_timestamp(
-    date_header: str, max_age_seconds: int = 300
-) -> Tuple[bool, Optional[str]]:
+def verify_timestamp(date_header: str, max_age_seconds: int = 300) -> tuple[bool, Optional[str]]:
     """
     Verify that a Date header timestamp is within acceptable age.
 
@@ -176,12 +172,12 @@ def verify_hmac_signature(
     body: str,
     secret_key: str,
     auth_header: str,
-    headers: Dict[str, str],
+    headers: dict[str, str],
     method: str = "POST",
     path: str = "/",
     max_age_seconds: int = 300,
     require_date: bool = True,
-) -> Tuple[bool, Optional[str]]:
+) -> tuple[bool, Optional[str]]:
     """
     Verify HMAC signature from authorization header with timestamp validation.
 
@@ -205,9 +201,7 @@ def verify_hmac_signature(
         # Get signed headers list
         signed_header_names = []
         if header_data["signed_headers"]:
-            signed_header_names = [
-                h.strip().lower() for h in header_data["signed_headers"].split(";")
-            ]
+            signed_header_names = [h.strip().lower() for h in header_data["signed_headers"].split(";")]
 
         # Check if date is required and present
         if require_date:
@@ -269,10 +263,10 @@ def create_signed_request(
     credential: str,
     algorithm: str = "SHA256",
     include_date: bool = True,
-    additional_headers: Optional[Dict[str, str]] = None,
+    additional_headers: Optional[dict[str, str]] = None,
     method: str = "POST",
     path: str = "/",
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Create a signed request with proper headers.
 
@@ -323,11 +317,11 @@ def create_signed_request(
 
 
 def validate_hmac_signature(
-    event: Dict[str, Any],
+    event: dict[str, Any],
     secret_key: str,
     max_age_seconds: int = 300,
     require_date: bool = True,
-) -> Union[bool, Dict[str, Any]]:
+) -> Union[bool, dict[str, Any]]:
     """
     Validate HMAC signature from an AWS API Gateway event.
 

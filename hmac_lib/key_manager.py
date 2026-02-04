@@ -7,15 +7,14 @@ for graceful key rotation between systems.
 
 import re
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from email.utils import formatdate
 from enum import Enum
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Optional
 
 from hmac_lib.asymmetric import (
     KeyType,
     compute_asymmetric_signature,
-    parse_asymmetric_header,
     verify_asymmetric_signature,
 )
 from hmac_lib.hmac_lib import (
@@ -73,7 +72,7 @@ class KeyManager:
     """
 
     def __init__(self):
-        self._keys: Dict[str, SigningKey] = {}
+        self._keys: dict[str, SigningKey] = {}
         self._active_key_id: Optional[str] = None
         self._lock = threading.RLock()
 
@@ -134,9 +133,12 @@ class KeyManager:
                 private_key_pem=private_key_pem,
                 public_key_pem=public_key_pem,
             )
-            if set_active and private_key_pem is not None:
-                self._active_key_id = key_id
-            elif self._active_key_id is None and private_key_pem is not None:
+            if (
+                set_active
+                and private_key_pem is not None
+                or self._active_key_id is None
+                and private_key_pem is not None
+            ):
                 self._active_key_id = key_id
 
     def set_active_key(self, key_id: str) -> None:
@@ -173,7 +175,7 @@ class KeyManager:
                 return None
             return self._keys.get(self._active_key_id)
 
-    def list_keys(self) -> Dict[str, Dict[str, Any]]:
+    def list_keys(self) -> dict[str, dict[str, Any]]:
         """
         List all keys with their status.
 
@@ -183,13 +185,11 @@ class KeyManager:
         with self._lock:
             result = {}
             for key_id, key in self._keys.items():
-                can_sign = (
-                    (key.method == SigningMethod.HMAC and key.secret_key is not None)
-                    or (key.method in (SigningMethod.RSA, SigningMethod.ED25519) and key.private_key_pem is not None)
+                can_sign = (key.method == SigningMethod.HMAC and key.secret_key is not None) or (
+                    key.method in (SigningMethod.RSA, SigningMethod.ED25519) and key.private_key_pem is not None
                 )
-                can_verify = (
-                    (key.method == SigningMethod.HMAC and key.secret_key is not None)
-                    or (key.method in (SigningMethod.RSA, SigningMethod.ED25519) and key.public_key_pem is not None)
+                can_verify = (key.method == SigningMethod.HMAC and key.secret_key is not None) or (
+                    key.method in (SigningMethod.RSA, SigningMethod.ED25519) and key.public_key_pem is not None
                 )
                 result[key_id] = {
                     "method": key.method.value,
@@ -233,8 +233,8 @@ class KeyManager:
         method: str = "POST",
         path: str = "/",
         include_date: bool = True,
-        additional_headers: Optional[Dict[str, str]] = None,
-    ) -> Dict[str, str]:
+        additional_headers: Optional[dict[str, str]] = None,
+    ) -> dict[str, str]:
         """
         Sign a request using the active key.
 
@@ -294,7 +294,7 @@ class KeyManager:
             result_headers.update(headers_to_sign)
             return result_headers
 
-    def _parse_auth_header(self, auth_header: str) -> Tuple[str, Dict[str, str]]:
+    def _parse_auth_header(self, auth_header: str) -> tuple[str, dict[str, str]]:
         """
         Parse authorization header to extract KeyId and other params.
 
@@ -345,12 +345,12 @@ class KeyManager:
         self,
         body: str,
         auth_header: str,
-        headers: Dict[str, str],
+        headers: dict[str, str],
         method: str = "POST",
         path: str = "/",
         max_age_seconds: int = 300,
         require_date: bool = True,
-    ) -> Tuple[bool, Optional[str]]:
+    ) -> tuple[bool, Optional[str]]:
         """
         Verify a request, extracting KeyId from auth header to find correct key.
 
@@ -423,6 +423,7 @@ class KeyManager:
                     path=path,
                 )
                 import hmac as hmac_module
+
                 if hmac_module.compare_digest(expected_signature, signature):
                     return True, None
                 else:

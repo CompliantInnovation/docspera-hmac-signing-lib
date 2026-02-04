@@ -44,15 +44,6 @@ Key Rotation Usage:
     is_valid, error = km.verify_request(body, auth_header, headers)
 """
 
-from hmac_lib.hmac_lib import (
-    compute_hmac_signature,
-    create_signed_request,
-    parse_hmac_header,
-    validate_hmac_signature,
-    verify_hmac_signature,
-    verify_timestamp,
-)
-
 from hmac_lib.asymmetric import (
     KeyType,
     compute_asymmetric_signature,
@@ -61,7 +52,14 @@ from hmac_lib.asymmetric import (
     parse_asymmetric_header,
     verify_asymmetric_signature,
 )
-
+from hmac_lib.hmac_lib import (
+    compute_hmac_signature,
+    create_signed_request,
+    parse_hmac_header,
+    validate_hmac_signature,
+    verify_hmac_signature,
+    verify_timestamp,
+)
 from hmac_lib.key_manager import (
     KeyManager,
     SigningKey,

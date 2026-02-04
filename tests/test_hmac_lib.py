@@ -20,8 +20,8 @@ import pytest
 from hmac_lib.hmac_lib import (
     compute_hmac_signature,
     parse_hmac_header,
-    verify_timestamp,
     validate_hmac_signature,
+    verify_timestamp,
 )
 
 
@@ -102,9 +102,7 @@ class TestHMACSignatureComputation(unittest.TestCase):
         sig1, _ = compute_hmac_signature(**base_params, body='{"a": 1}')
         sig2, _ = compute_hmac_signature(**base_params, body='{"a": 2}')
 
-        self.assertNotEqual(
-            sig1, sig2, "Different bodies should produce different signatures"
-        )
+        self.assertNotEqual(sig1, sig2, "Different bodies should produce different signatures")
 
     def test_string_to_sign_format(self):
         """Test the string-to-sign format matches specification."""
@@ -229,13 +227,9 @@ class TestFullHMACValidation(unittest.TestCase):
         self.test_key_b64 = base64.b64encode(self.test_key).decode("utf-8")
 
         # Set environment variable
-        os.environ[
-            "SNN_FEEDBACK_SECRET_ARN"
-        ] = "arn:aws:secretsmanager:us-west-2:123456789012:secret:snn-feedback"
+        os.environ["SNN_FEEDBACK_SECRET_ARN"] = "arn:aws:secretsmanager:us-west-2:123456789012:secret:snn-feedback"
 
-    def create_test_event(
-        self, auth_header, date_header, body, path="/feedback/scheduling"
-    ):
+    def create_test_event(self, auth_header, date_header, body, path="/feedback/scheduling"):
         """Helper to create API Gateway event."""
         return {
             "httpMethod": "POST",
@@ -277,9 +271,7 @@ class TestFullHMACValidation(unittest.TestCase):
             body=body_json,
         )
 
-        auth_header = (
-            f"HMAC-SHA256 SignedHeaders=date;host;content-type&Signature={signature}"
-        )
+        auth_header = f"HMAC-SHA256 SignedHeaders=date;host;content-type&Signature={signature}"
 
         # Create event
         event = self.create_test_event(auth_header, date_header, body_json)
@@ -345,18 +337,12 @@ class TestFullHMACValidation(unittest.TestCase):
             body=body,
         )
 
-        auth_header = (
-            f"HMAC-SHA256 SignedHeaders=date;host;content-type&Signature={signature}"
-        )
+        auth_header = f"HMAC-SHA256 SignedHeaders=date;host;content-type&Signature={signature}"
         event = self.create_test_event(auth_header, date_header, body)
 
-        result = validate_hmac_signature(
-            event, secret_key=self.test_key.decode("utf-8")
-        )
+        result = validate_hmac_signature(event, secret_key=self.test_key.decode("utf-8"))
         self.assertEqual(result["statusCode"], 401)
-        self.assertTrue(
-            "Invalid signature: Timestamp validation failed" in result["body"]
-        )
+        self.assertTrue("Invalid signature: Timestamp validation failed" in result["body"])
 
 
 class TestClientServerCompatibility(unittest.TestCase):
@@ -376,9 +362,7 @@ class TestClientServerCompatibility(unittest.TestCase):
         date_header = "Tue, 04 Nov 2025 05:15:11 GMT"
         host = "snn.api-external.stage.docspera.co"
         content_type = "application/json"
-        body = (
-            '{"eventId":"12345","timestamp":"2025-11-04T05:15:11Z","status":"SUCCESS"}'
-        )
+        body = '{"eventId":"12345","timestamp":"2025-11-04T05:15:11Z","status":"SUCCESS"}'
 
         canonical_headers = {
             "date": date_header,
@@ -399,9 +383,7 @@ class TestClientServerCompatibility(unittest.TestCase):
 
         # Manually compute what the signature should be
         # canonical_query = ""
-        canonical_headers_str = "\n".join(
-            [f"{k}:{v}" for k, v in sorted(canonical_headers.items())]
-        )
+        canonical_headers_str = "\n".join([f"{k}:{v}" for k, v in sorted(canonical_headers.items())])
         # payload_hash = hashlib.sha256(body.encode("utf-8")).hexdigest()
 
         string_to_sign = "\n".join(
@@ -416,9 +398,7 @@ class TestClientServerCompatibility(unittest.TestCase):
         )
 
         expected_signature = base64.b64encode(
-            hmac.new(
-                self.test_key, string_to_sign.encode("utf-8"), hashlib.sha256
-            ).digest()
+            hmac.new(self.test_key, string_to_sign.encode("utf-8"), hashlib.sha256).digest()
         ).decode("utf-8")
 
         self.assertEqual(
@@ -478,9 +458,7 @@ class TestRealEventStructure(unittest.TestCase):
             path="/feedback/scheduling",
         )
 
-        event["headers"][
-            "Authorization"
-        ] = f"HMAC-SHA256 SignedHeaders=date;host;content-type&Signature={signature}"
+        event["headers"]["Authorization"] = f"HMAC-SHA256 SignedHeaders=date;host;content-type&Signature={signature}"
 
         # Validate
         result = validate_hmac_signature(event, self.test_key.decode("utf-8"))

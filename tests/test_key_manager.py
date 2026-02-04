@@ -8,8 +8,8 @@ import threading
 import time
 import unittest
 
-from hmac_lib.asymmetric import generate_key_pair, KeyType
-from hmac_lib.key_manager import KeyManager, SigningKey, SigningMethod
+from hmac_lib.asymmetric import KeyType, generate_key_pair
+from hmac_lib.key_manager import KeyManager, SigningMethod
 
 
 class TestKeyManagerBasic(unittest.TestCase):

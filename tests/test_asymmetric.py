@@ -5,7 +5,6 @@ Tests Ed25519 and RSA signature generation and verification.
 """
 
 import base64
-import time
 import unittest
 
 from hmac_lib.asymmetric import (

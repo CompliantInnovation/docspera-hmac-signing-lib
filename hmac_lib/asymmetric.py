@@ -8,7 +8,7 @@ public/private key pairs.
 import base64
 import re
 from email.utils import formatdate
-from typing import Dict, Optional, Tuple
+from typing import Optional
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519, padding, rsa
@@ -25,7 +25,7 @@ class KeyType:
 def generate_key_pair(
     key_type: str = KeyType.ED25519,
     key_size: int = 2048,
-) -> Tuple[bytes, bytes]:
+) -> tuple[bytes, bytes]:
     """
     Generate a public/private key pair.
 
@@ -69,7 +69,7 @@ def generate_key_pair(
 
 def _build_canonical_string(
     body: str,
-    headers_to_sign: Optional[Dict[str, str]],
+    headers_to_sign: Optional[dict[str, str]],
     method: str,
     path: str,
 ) -> str:
@@ -106,10 +106,10 @@ def compute_asymmetric_signature(
     private_key_pem: bytes,
     key_type: str = KeyType.ED25519,
     encoding: str = "utf-8",
-    headers_to_sign: Optional[Dict[str, str]] = None,
+    headers_to_sign: Optional[dict[str, str]] = None,
     method: str = "POST",
     path: str = "/",
-) -> Tuple[str, str]:
+) -> tuple[str, str]:
     """
     Compute signature using private key.
 
@@ -160,10 +160,10 @@ def verify_asymmetric_signature(
     signature: str,
     key_type: str = KeyType.ED25519,
     encoding: str = "utf-8",
-    headers_to_sign: Optional[Dict[str, str]] = None,
+    headers_to_sign: Optional[dict[str, str]] = None,
     method: str = "POST",
     path: str = "/",
-) -> Tuple[bool, Optional[str]]:
+) -> tuple[bool, Optional[str]]:
     """
     Verify signature using public key.
 
@@ -212,7 +212,7 @@ def verify_asymmetric_signature(
         return False, f"Signature verification failed: {str(e)}"
 
 
-def parse_asymmetric_header(auth_header: str) -> Tuple[str, Dict[str, str]]:
+def parse_asymmetric_header(auth_header: str) -> tuple[str, dict[str, str]]:
     """
     Parse asymmetric authorization header.
 
@@ -278,10 +278,10 @@ def create_signed_request_asymmetric(
     key_id: str,
     key_type: str = KeyType.ED25519,
     include_date: bool = True,
-    additional_headers: Optional[Dict[str, str]] = None,
+    additional_headers: Optional[dict[str, str]] = None,
     method: str = "POST",
     path: str = "/",
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Create signed request headers using asymmetric key.
 
