@@ -1,7 +1,8 @@
 # HMAC Signing Library
 
-<!-- Update CompliantInnovation/docspera-hmac-signing-lib with your actual GitHub organization and repository name -->
 [![CI](https://github.com/CompliantInnovation/docspera-hmac-signing-lib/actions/workflows/ci.yml/badge.svg)](https://github.com/CompliantInnovation/docspera-hmac-signing-lib/actions/workflows/ci.yml)
+[![Tests](https://github.com/CompliantInnovation/docspera-hmac-signing-lib/actions/workflows/tests.yml/badge.svg)](https://github.com/CompliantInnovation/docspera-hmac-signing-lib/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/CompliantInnovation/docspera-hmac-signing-lib/branch/master/graph/badge.svg)](https://codecov.io/gh/CompliantInnovation/docspera-hmac-signing-lib)
 [![Release](https://github.com/CompliantInnovation/docspera-hmac-signing-lib/actions/workflows/release.yml/badge.svg)](https://github.com/CompliantInnovation/docspera-hmac-signing-lib/actions/workflows/release.yml)
 [![PyPI version](https://badge.fury.io/py/docspera-hmac-signing-lib.svg)](https://badge.fury.io/py/docspera-hmac-signing-lib)
 [![Python versions](https://img.shields.io/pypi/pyversions/docspera-hmac-signing-lib.svg)](https://pypi.org/project/docspera-hmac-signing-lib/)
