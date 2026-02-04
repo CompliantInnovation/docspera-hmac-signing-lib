@@ -326,6 +326,7 @@ def validate_hmac_signature(
     event: Dict[str, Any],
     secret_key: str,
     max_age_seconds: int = 300,
+    require_date: bool = True,
 ) -> Union[bool, Dict[str, Any]]:
     """
     Validate HMAC signature from an AWS API Gateway event.
@@ -337,6 +338,7 @@ def validate_hmac_signature(
         event: API Gateway event with httpMethod, path, headers, body
         secret_key: The secret key for HMAC validation
         max_age_seconds: Maximum age for timestamp validation (default: 5 minutes)
+        require_date: Whether to require and validate Date header (default: True)
 
     Returns:
         True if signature is valid
@@ -369,7 +371,7 @@ def validate_hmac_signature(
         method=event.get("httpMethod", "POST"),
         path=event.get("path", "/"),
         max_age_seconds=max_age_seconds,
-        require_date=True,
+        require_date=require_date,
     )
 
     if is_valid:

@@ -288,6 +288,98 @@ Headers are sorted alphabetically by name (case-insensitive).
 | `verify_request()` | Verify request (finds key by KeyId) |
 | `list_keys()` | List all keys with status |
 
+## Manual Implementation (Without Library)
+
+If you need to implement signing in another language or without this library, here's how to create a compatible signature:
+
+### Python Example (Manual HMAC Signing)
+
+```python
+import base64
+import hashlib
+import hmac
+from email.utils import formatdate
+import requests
+
+# Configuration
+secret_key = "your-shared-secret"
+key_id = "your-key-id"
+credential = "your-api-key"
+method = "POST"
+path = "/webhook"
+url = f"https://api.example.com{path}"
+body = '{"event":"order.created","data":{"id":123}}'
+
+# Step 1: Create headers to sign
+date_header = formatdate(usegmt=True)  # e.g., "Wed, 05 Feb 2026 12:00:00 GMT"
+headers_to_sign = {
+    "date": date_header,
+    "host": "api.example.com",
+    "content-type": "application/json",
+}
+
+# Step 2: Build canonical string
+# Format: METHOD\nPATH\nheader1:value1\nheader2:value2\n...\nBODY
+# Headers must be sorted alphabetically (case-insensitive)
+canonical_parts = [method, path]
+for header_name in sorted(headers_to_sign.keys(), key=str.lower):
+    canonical_parts.append(f"{header_name.lower()}:{headers_to_sign[header_name]}")
+canonical_parts.append(body)
+canonical_string = "\n".join(canonical_parts)
+
+# Step 3: Compute HMAC-SHA256 signature
+signature_bytes = hmac.new(
+    secret_key.encode("utf-8"),
+    canonical_string.encode("utf-8"),
+    hashlib.sha256,
+).digest()
+signature = base64.b64encode(signature_bytes).decode("ascii")
+
+# Step 4: Build Authorization header
+signed_headers_list = ";".join(sorted(headers_to_sign.keys(), key=str.lower))
+auth_header = f"HMAC-SHA256 KeyId={key_id}&Credential={credential}&SignedHeaders={signed_headers_list}&Signature={signature}"
+
+# Step 5: Make the request
+response = requests.post(
+    url,
+    data=body,
+    headers={
+        "Authorization": auth_header,
+        "Date": date_header,
+        "Host": "api.example.com",
+        "Content-Type": "application/json",
+    },
+)
+print(f"Response: {response.status_code}")
+```
+
+### Canonical String Example
+
+For a POST request to `/webhook` with body `{"event":"test"}`:
+
+```
+POST
+/webhook
+content-type:application/json
+date:Wed, 05 Feb 2026 12:00:00 GMT
+host:api.example.com
+{"event":"test"}
+```
+
+### Other Languages
+
+The algorithm is straightforward to implement in any language:
+
+1. **Build canonical string**: `METHOD + \n + PATH + \n + sorted_headers + \n + BODY`
+2. **Compute signature**: `base64(HMAC-SHA256(secret_key, canonical_string))`
+3. **Format header**: `HMAC-SHA256 KeyId=...&Credential=...&SignedHeaders=...&Signature=...`
+
+**Key points:**
+- Headers are sorted alphabetically by lowercase name
+- Header format in canonical string: `lowercase_name:value` (no space after colon)
+- SignedHeaders is semicolon-separated, lowercase, alphabetically sorted
+- Signature is base64-encoded
+
 ## Configuration Options
 
 ### Timestamp Validation
@@ -296,7 +388,11 @@ Headers are sorted alphabetically by name (case-insensitive).
 # Default: 5 minutes (300 seconds)
 validate_hmac_signature(event, secret_key, max_age_seconds=300)
 
-# Disable timestamp validation
+# Custom time window
+validate_hmac_signature(event, secret_key, max_age_seconds=600)  # 10 minutes
+
+# Disable timestamp validation entirely
+validate_hmac_signature(event, secret_key, require_date=False)
 verify_hmac_signature(..., require_date=False)
 ```
 
