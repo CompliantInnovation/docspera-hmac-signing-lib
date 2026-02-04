@@ -1,5 +1,12 @@
 # HMAC Signing Library
 
+<!-- Update YOUR_ORG/YOUR_REPO with your actual GitHub organization and repository name -->
+[![CI](https://github.com/YOUR_ORG/YOUR_REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_ORG/YOUR_REPO/actions/workflows/ci.yml)
+[![Release](https://github.com/YOUR_ORG/YOUR_REPO/actions/workflows/release.yml/badge.svg)](https://github.com/YOUR_ORG/YOUR_REPO/actions/workflows/release.yml)
+[![PyPI version](https://badge.fury.io/py/docspera-hmac-signing-lib.svg)](https://badge.fury.io/py/docspera-hmac-signing-lib)
+[![Python versions](https://img.shields.io/pypi/pyversions/docspera-hmac-signing-lib.svg)](https://pypi.org/project/docspera-hmac-signing-lib/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A Python library for signing and verifying HTTP webhook requests between systems. Supports HMAC (symmetric) and asymmetric (Ed25519/RSA) signing with built-in key rotation support.
 
 ## Installation
