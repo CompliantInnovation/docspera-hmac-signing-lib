@@ -71,7 +71,7 @@ class KeyManager:
         km.remove_key("key-v1")
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._keys: dict[str, SigningKey] = {}
         self._active_key_id: Optional[str] = None
         self._lock = threading.RLock()
@@ -266,6 +266,8 @@ class KeyManager:
                 headers_to_sign.update(additional_headers)
 
             if key.method == SigningMethod.HMAC:
+                if key.secret_key is None:
+                    raise ValueError(f"Key '{key.key_id}' has no secret key")
                 signature, _ = compute_hmac_signature(
                     body=body,
                     secret_key=key.secret_key,
@@ -278,6 +280,8 @@ class KeyManager:
                 auth_header = f"HMAC-{key.algorithm} KeyId={key.key_id}&Credential={credential}&SignedHeaders={signed_headers_list}&Signature={signature}"
             else:
                 # Asymmetric
+                if key.private_key_pem is None:
+                    raise ValueError(f"Key '{key.key_id}' has no private key")
                 key_type = KeyType.ED25519 if key.method == SigningMethod.ED25519 else KeyType.RSA
                 signature, _ = compute_asymmetric_signature(
                     body=body,
@@ -414,6 +418,8 @@ class KeyManager:
 
             # Verify signature based on key type
             if key.method == SigningMethod.HMAC:
+                if key.secret_key is None:
+                    return False, f"Key '{key_id}' has no secret key for verification"
                 expected_signature, _ = compute_hmac_signature(
                     body=body,
                     secret_key=key.secret_key,
@@ -430,6 +436,8 @@ class KeyManager:
                     return False, "Signature mismatch"
             else:
                 # Asymmetric verification
+                if key.public_key_pem is None:
+                    return False, f"Key '{key_id}' has no public key for verification"
                 key_type = KeyType.ED25519 if key.method == SigningMethod.ED25519 else KeyType.RSA
                 return verify_asymmetric_signature(
                     body=body,

@@ -39,6 +39,7 @@ def generate_key_pair(
     Raises:
         ValueError: If unsupported key type is specified
     """
+    private_key: PrivateKeyTypes
     if key_type == KeyType.ED25519:
         private_key = ed25519.Ed25519PrivateKey.generate()
     elif key_type == KeyType.RSA:
