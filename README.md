@@ -388,6 +388,166 @@ The algorithm is straightforward to implement in any language:
 - SignedHeaders is semicolon-separated, lowercase, alphabetically sorted
 - Signature is base64-encoded
 
+## FastAPI JWKS Endpoint (Public Key Distribution)
+
+If you're using asymmetric signing with key rotation, you can expose your public keys via a standard JWKS endpoint so that clients can automatically fetch and cache verification keys.
+
+```bash
+pip install docspera-hmac-signing-lib fastapi uvicorn
+```
+
+```python
+import base64
+import uuid
+from datetime import datetime, timedelta, timezone
+
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat, load_pem_public_key
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+
+from hmac_lib import KeyManager, KeyType, SigningMethod, generate_key_pair
+
+app = FastAPI()
+
+# --- Key rotation config ---
+KEY_TYPE = KeyType.ED25519
+ROTATION_INTERVAL_HOURS = 24
+GRACE_PERIOD_HOURS = 48
+
+# --- State ---
+km = KeyManager()
+key_metadata: dict[str, dict] = {}  # key_id -> {public_key_pem, created_at, expires_at}
+
+
+def _base64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
+def _pem_to_jwk(key_id: str, public_key_pem: bytes) -> dict:
+    """Convert an Ed25519 or RSA PEM public key to JWK format."""
+    from cryptography.hazmat.primitives.asymmetric import ed25519, rsa
+
+    pub = load_pem_public_key(public_key_pem)
+
+    if isinstance(pub, ed25519.Ed25519PublicKey):
+        raw = pub.public_bytes(Encoding.Raw, PublicFormat.Raw)
+        return {"kty": "OKP", "crv": "Ed25519", "x": _base64url(raw),
+                "kid": key_id, "use": "sig", "alg": "EdDSA"}
+
+    if isinstance(pub, rsa.RSAPublicKey):
+        nums = pub.public_numbers()
+        n_bytes = nums.n.to_bytes((nums.n.bit_length() + 7) // 8, "big")
+        e_bytes = nums.e.to_bytes((nums.e.bit_length() + 7) // 8, "big")
+        return {"kty": "RSA", "n": _base64url(n_bytes), "e": _base64url(e_bytes),
+                "kid": key_id, "use": "sig", "alg": "RS256"}
+
+    raise ValueError(f"Unsupported key type: {type(pub)}")
+
+
+def rotate_key():
+    """Generate a new key pair, register it in KeyManager, and track metadata."""
+    key_id = f"key-{uuid.uuid4().hex[:8]}"
+    private_pem, public_pem = generate_key_pair(KEY_TYPE)
+    method = SigningMethod.ED25519 if KEY_TYPE == KeyType.ED25519 else SigningMethod.RSA
+
+    km.add_asymmetric_key(key_id, method,
+                          private_key_pem=private_pem,
+                          public_key_pem=public_pem,
+                          set_active=True)
+
+    now = datetime.now(timezone.utc)
+    key_metadata[key_id] = {
+        "public_key_pem": public_pem,
+        "created_at": now,
+        "expires_at": now + timedelta(hours=ROTATION_INTERVAL_HOURS),
+    }
+
+
+def cleanup_expired_keys():
+    """Remove keys that are past the grace period."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=GRACE_PERIOD_HOURS)
+    active_key = km.get_active_key()
+    for kid in list(key_metadata):
+        meta = key_metadata[kid]
+        if meta["expires_at"] < cutoff and (active_key is None or kid != active_key.key_id):
+            km.remove_key(kid)
+            del key_metadata[kid]
+
+
+# Create initial key on startup
+rotate_key()
+
+
+@app.get("/.well-known/jwks.json")
+def jwks():
+    """Public JWKS endpoint — returns all valid public keys."""
+    cleanup_expired_keys()
+    keys = [_pem_to_jwk(kid, meta["public_key_pem"])
+            for kid, meta in key_metadata.items()]
+    return JSONResponse(
+        content={"keys": keys},
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
+@app.post("/rotate")
+def trigger_rotation():
+    """Trigger a manual key rotation (protect this in production)."""
+    rotate_key()
+    return {"status": "rotated", "active_key": km.get_active_key().key_id}
+```
+
+Run locally:
+```bash
+uvicorn app:app --reload
+# GET http://localhost:8000/.well-known/jwks.json
+```
+
+**Clients** verify signatures by fetching the JWKS endpoint, finding the key matching the `KeyId` from the `Authorization` header, and using it to verify:
+
+```python
+import requests
+from hmac_lib import verify_asymmetric_signature, parse_asymmetric_header
+from cryptography.hazmat.primitives.asymmetric import ed25519
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+
+def verify_with_jwks(jwks_url, auth_header, body, headers, method="POST", path="/"):
+    """Fetch public keys from JWKS endpoint and verify the request signature."""
+    _, params = parse_asymmetric_header(auth_header)
+    kid = params["key_id"]
+
+    # Fetch JWKS (cache this in production)
+    jwks = requests.get(jwks_url).json()
+    jwk = next((k for k in jwks["keys"] if k["kid"] == kid), None)
+    if not jwk:
+        return False, f"Key {kid} not found in JWKS"
+
+    # Reconstruct PEM from JWK
+    if jwk["kty"] == "OKP" and jwk["crv"] == "Ed25519":
+        import base64
+        raw = base64.urlsafe_b64decode(jwk["x"] + "==")
+        pub = ed25519.Ed25519PublicKey.from_public_bytes(raw)
+        public_key_pem = pub.public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
+    else:
+        raise ValueError(f"Unsupported JWK type: {jwk['kty']}")
+
+    # Extract signed headers
+    signed_headers = {}
+    for name in params["signed_headers"].split(";"):
+        if name:
+            signed_headers[name] = headers.get(name, "")
+
+    return verify_asymmetric_signature(
+        body=body,
+        public_key_pem=public_key_pem,
+        signature=params["signature"],
+        key_type=params["key_type"],
+        headers_to_sign=signed_headers,
+        method=method,
+        path=path,
+    )
+```
+
 ## Configuration Options
 
 ### Timestamp Validation
