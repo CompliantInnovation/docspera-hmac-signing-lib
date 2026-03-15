@@ -34,7 +34,7 @@ jobs:
 
       - name: Validate version in pyproject.toml
         run: |
-          PYPROJECT_VERSION=$(grep -oP 'version = "\K[^"]+' pyproject.toml)
+          PYPROJECT_VERSION=$(grep -oP '^version = "\K[^"]+' pyproject.toml)
           echo "pyproject.toml version: $PYPROJECT_VERSION"
           echo "Release version: ${{ steps.get_version.outputs.version }}"
           if [ "$PYPROJECT_VERSION" != "${{ steps.get_version.outputs.version }}" ]; then
