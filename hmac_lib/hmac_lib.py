@@ -1,10 +1,16 @@
 import base64
 import hashlib
 import hmac
+import logging
 import re
 from datetime import datetime, timezone
 from email.utils import formatdate, parsedate_to_datetime
 from typing import Any, Optional, Union
+
+# Debug toggle: enable with logging.getLogger("hmac_lib").setLevel(logging.DEBUG)
+# to log the exact canonical string-to-sign + body (DEBUG-gated). WARNING: logs
+# the full body (possible PII/PHI) — do not enable in production logs.
+logger = logging.getLogger(__name__)
 
 
 def compute_hmac_signature(
@@ -68,6 +74,12 @@ def compute_hmac_signature(
 
     # Join with newlines
     canonical_string = "\n".join(canonical_parts)
+
+    # Debug toggle (see module docstring): surface what is about to be signed.
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug("hmac sign: algorithm=%s method=%s path=%s encoding=%s", algo_upper, method, path, encoding)
+        logger.debug("hmac sign body: %s", body)
+        logger.debug("hmac canonical string to sign:\n%s", canonical_string)
 
     # Create HMAC
     h = hmac.new(

@@ -584,6 +584,29 @@ verify_hmac_signature(..., require_date=False)
 3. **KeyId required** - all requests must identify which key was used
 4. **Date header must be signed** - prevents timestamp tampering
 
+## Debugging signature verification
+
+When a counterparty cannot verify a signature you produced, enable DEBUG logging
+on the `hmac_lib` logger to see exactly what was signed — the canonical
+string-to-sign and the request body — logged immediately before signing:
+
+```python
+import logging
+
+logging.getLogger("hmac_lib").setLevel(logging.DEBUG)
+# ...then sign as usual; the signing functions emit:
+#   "<hmac|asymmetric> canonical string to sign:\n<METHOD>\n<path>\ndate:<...>\n<body>"
+#   "<hmac|asymmetric> sign body: <body>"
+```
+
+This covers all signing paths (`KeyManager.sign_request`, `create_signed_request_*`,
+`compute_hmac_signature`, `compute_asymmetric_signature`). Compare the logged
+canonical string against what the verifier reconstructs to find the mismatch
+(common causes: a differing `Date` header value, path, or body whitespace/encoding).
+
+> **Warning:** at DEBUG this logs the full request body, which may contain
+> PII/PHI. Do not leave DEBUG enabled in production logs.
+
 ## Development
 
 ```bash

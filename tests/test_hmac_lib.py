@@ -465,5 +465,55 @@ class TestRealEventStructure(unittest.TestCase):
         self.assertTrue(result, "Real event structure should validate successfully")
 
 
+class TestSigningDebugLogging:
+    """The `hmac_lib` logger emits the canonical string + body at DEBUG only.
+
+    This is the library's debug toggle: callers enable it with
+    `logging.getLogger("hmac_lib").setLevel(logging.DEBUG)` to debug why a
+    counterparty cannot verify a signature.
+    """
+
+    def test_asymmetric_logs_canonical_and_body_at_debug(self, caplog):
+        import logging
+
+        from hmac_lib.asymmetric import compute_asymmetric_signature, generate_key_pair
+
+        private_pem, _ = generate_key_pair()
+        body = '{"messageType":"AppointmentEvent"}'
+        with caplog.at_level(logging.DEBUG, logger="hmac_lib"):
+            _, canonical = compute_asymmetric_signature(
+                body=body,
+                private_key_pem=private_pem,
+                headers_to_sign={"Date": "Thu, 01 Jan 2026 00:00:00 GMT"},
+                method="POST",
+                path="/v1/messages",
+            )
+        logged = "\n".join(r.getMessage() for r in caplog.records)
+        assert canonical in logged  # exact string-to-sign is logged
+        assert body in logged  # the signed payload is logged
+
+    def test_asymmetric_silent_above_debug(self, caplog):
+        import logging
+
+        from hmac_lib.asymmetric import compute_asymmetric_signature, generate_key_pair
+
+        private_pem, _ = generate_key_pair()
+        with caplog.at_level(logging.INFO, logger="hmac_lib"):
+            compute_asymmetric_signature(body="b", private_key_pem=private_pem)
+        assert [r for r in caplog.records if r.levelno == logging.DEBUG] == []
+
+    def test_hmac_logs_canonical_and_body_at_debug(self, caplog):
+        import logging
+
+        from hmac_lib.hmac_lib import compute_hmac_signature
+
+        body = '{"x":1}'
+        with caplog.at_level(logging.DEBUG, logger="hmac_lib"):
+            _, canonical = compute_hmac_signature(body=body, secret_key="s", method="POST", path="/x")
+        logged = "\n".join(r.getMessage() for r in caplog.records)
+        assert canonical in logged
+        assert body in logged
+
+
 if __name__ == "__main__":
     unittest.main()
