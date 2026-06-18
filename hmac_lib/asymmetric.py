@@ -6,6 +6,7 @@ public/private key pairs.
 """
 
 import base64
+import logging
 import re
 from email.utils import formatdate
 from typing import Optional
@@ -13,6 +14,13 @@ from typing import Optional
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519, padding, rsa
 from cryptography.hazmat.primitives.asymmetric.types import PrivateKeyTypes, PublicKeyTypes
+
+# Debug toggle: callers enable signing diagnostics with
+#   logging.getLogger("hmac_lib").setLevel(logging.DEBUG)
+# which logs the exact canonical string-to-sign and the request body — useful
+# when a counterparty cannot verify a signature. WARNING: at DEBUG this logs the
+# full request body (which may contain PII/PHI); do not enable in production logs.
+logger = logging.getLogger(__name__)
 
 
 class KeyType:
@@ -131,6 +139,13 @@ def compute_asymmetric_signature(
     """
     canonical_string = _build_canonical_string(body, headers_to_sign, method, path)
     data = canonical_string.encode(encoding)
+
+    # Debug toggle (see module docstring): surface exactly what is about to be
+    # signed so a counterparty can reproduce verification. DEBUG-gated.
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug("asymmetric sign: key_type=%s method=%s path=%s encoding=%s", key_type, method, path, encoding)
+        logger.debug("asymmetric sign body: %s", body)
+        logger.debug("asymmetric canonical string to sign:\n%s", canonical_string)
 
     private_key = _load_private_key(private_key_pem)
 
